@@ -131,6 +131,23 @@ const client = new OpenAI({
 const result = await translate(content, {targetLang: "es"}, client);
 ```
 
+### Bring custom models - like Deepseek
+
+```typescript
+import OpenAI from "openai";
+import { translate } from "transl8-srt";
+
+const client = new OpenAI({
+  baseURL: "https://api.deepseek.com",
+  apiKey: process.env.DEEPSEEK_API_KEY,
+});
+
+const result = await translate(content, {
+  targetLang: "fr",
+  model: "deepseek-chat",   // ← explicitly set — no auto-selection for custom providers
+}, client);
+```
+
 ---
 
 ## Options reference
