@@ -4,6 +4,7 @@ import {reconstructSentences} from "./utils/reconstructor.js";
 import {executeTranslation} from "./utils/executor.js";
 import {reanchorCues} from "./utils/reanchor.js";
 import {emitSRT, emitVTT} from "./utils/emitter.js";
+import {pickModel} from "./utils/prompts.js";
 import type {
     TranslateOptions,
     TranslationResult,
@@ -11,23 +12,18 @@ import type {
 
 export * from "./types/types.js";
 
-// ─── Cost model (as of June 2025) ─────────────────────────────────────────────
+// ─── Cost model (as of June 2025, OpenAI pricing) ─────────────────────────────
+// Custom provider users: estimatedCostUsd will be 0 — use your provider's pricing.
 
-const COST_PER_M_TOKENS = {
+const KNOWN_COSTS: Record<string, { input: number; output: number }> = {
     "gpt-4o": {input: 2.50, output: 10.00},
     "gpt-4o-mini": {input: 0.15, output: 0.60},
-} as const;
+};
 
-function estimateCost(
-    model: "gpt-4o" | "gpt-4o-mini",
-    inputTokens: number,
-    outputTokens: number
-): number {
-    const rates = COST_PER_M_TOKENS[model];
-    return (
-        (inputTokens / 1_000_000) * rates.input +
-        (outputTokens / 1_000_000) * rates.output
-    );
+function estimateCost(model: string, inputTokens: number, outputTokens: number): number {
+    const rates = KNOWN_COSTS[model];
+    if (!rates) return 0; // unknown model / custom provider — caller should check their own pricing
+    return (inputTokens / 1_000_000) * rates.input + (outputTokens / 1_000_000) * rates.output;
 }
 
 // ─── Core translate function ──────────────────────────────────────────────────
@@ -36,12 +32,17 @@ export async function translate(
     /** Raw SRT or VTT file content */
     fileContent: string,
     opts: TranslateOptions,
-    /** Pass your own OpenAI client (allows custom baseURL, auth, etc.) */
+    /**
+     * Pass your own OpenAI-compatible client.
+     * For DeepSeek: new OpenAI({ baseURL: "https://api.deepseek.com", apiKey: "..." })
+     * For Groq:     new OpenAI({ baseURL: "https://api.groq.com/openai/v1", apiKey: "..." })
+     * Remember to also set opts.model to your provider's model name.
+     */
     client?: OpenAI
 ): Promise<TranslationResult> {
     const startTime = Date.now();
 
-    const oi = client ?? new OpenAI();          // uses OPENAI_API_KEY from env
+    const oi = client ?? new OpenAI();
     const format = detectFormat(fileContent);
 
     // 1. Parse
@@ -58,10 +59,7 @@ export async function translate(
     const translatedCues = reanchorCues(cues, sentences, translations);
 
     // 5. Assemble result
-    const model = opts.model ??
-        (["yo", "ig", "ha", "sw", "zu", "ar", "am"].includes(opts.targetLang)
-            ? "gpt-4o"
-            : "gpt-4o-mini");
+    const resolvedModel = pickModel(opts);
 
     const stats = {
         totalCues: cues.length,
@@ -69,7 +67,7 @@ export async function translate(
         totalBatches,
         inputTokens: totalInputTokens,
         outputTokens: totalOutputTokens,
-        estimatedCostUsd: estimateCost(model, totalInputTokens, totalOutputTokens),
+        estimatedCostUsd: estimateCost(resolvedModel, totalInputTokens, totalOutputTokens),
         durationMs: Date.now() - startTime,
     };
 

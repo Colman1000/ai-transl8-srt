@@ -54,8 +54,20 @@ export interface TranslateOptions {
     batchSize?: number;
     /** Context overlap: N sentences from the prev batch prepended (default 4) */
     contextOverlap?: number;
-    /** OpenAI model override. Defaults to gpt-4o for non-Latin scripts, gpt-4o-mini otherwise */
-    model?: "gpt-4o" | "gpt-4o-mini";
+    /**
+     * Model for translation batches.
+     * OpenAI users: defaults to "gpt-4o" for complex scripts, "gpt-4o-mini" otherwise.
+     * Custom client users (DeepSeek, Groq, etc.): set this to your provider's model name,
+     * e.g. "deepseek-chat". Auto-selection only works for OpenAI model names.
+     */
+    model?: "gpt-4o" | "gpt-4o-mini" | (string & {});
+    /**
+     * Fallback model used when auto-selection would normally pick gpt-4o-mini
+     * but you're on a custom provider. Only needed if you want different models
+     * for different language complexity tiers on a non-OpenAI backend.
+     * Most custom client users should just set `model` and leave this unset.
+     */
+    modelFallback?: string;
     /** Max concurrent batch requests (default 8) */
     concurrency?: number;
     /** Enable AI primer call — for general/unknown content only */
@@ -73,13 +85,10 @@ export interface TranslationResult {
     sourceLang: string;
     targetLang: string;
     cues: TranslatedCue[];
-
     /** Render back to SRT string */
     toSRT(): string;
-
     /** Render back to VTT string */
     toVTT(): string;
-
     stats: TranslationStats;
 }
 

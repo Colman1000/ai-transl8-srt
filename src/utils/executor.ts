@@ -1,12 +1,12 @@
 import OpenAI from "openai";
+import {
+    SubtitleTranslationError,
+} from "../types/types.js";
 import type {
     BatchPayload,
     BatchResult,
     ReconstructedSentence,
     TranslateOptions,
-} from "../types/types.js";
-import {
-    SubtitleTranslationError,
 } from "../types/types.js";
 import {buildSystemPrompt, buildUserMessage, pickModel} from "./prompts.js";
 
@@ -74,7 +74,7 @@ async function executeBatch(
     client: OpenAI,
     payload: BatchPayload,
     systemPrompt: string,
-    model: "gpt-4o" | "gpt-4o-mini",
+    model: string,
     retries = 2
 ): Promise<BatchResult> {
     const userMessage = buildUserMessage(
@@ -160,7 +160,7 @@ export async function executeTranslation(
     const batchSize = opts.batchSize ?? 25;
     const overlap = opts.contextOverlap ?? 4;
     const concurrency = opts.concurrency ?? 8;
-    const model = pickModel(opts.targetLang, opts.model);
+    const model = pickModel(opts);
     const systemPrompt = buildSystemPrompt(opts);
 
     const payloads = buildBatches(sentences, batchSize, overlap);

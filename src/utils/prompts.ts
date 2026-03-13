@@ -1,4 +1,4 @@
-import type { ContentDomain, SupportedLanguage, TranslationMeta, TranslateOptions } from "../types/types.js";
+import type { ContentDomain, TranslationMeta, TranslateOptions } from "../types/types.js";
 
 const DOMAIN_INSTRUCTIONS: Record<ContentDomain, string> = {
   sermon: `Domain: Christian sermon / religious teaching.
@@ -12,18 +12,28 @@ Preserve the speaker's natural register and sentence rhythm.
 Do not add formality that isn't in the source.`,
 };
 
-// Languages that use non-Latin scripts — always route to gpt-4o
-const NON_LATIN_SCRIPTS = new Set(["ar", "am", "zh", "ja", "ko", "hi", "ru", "uk", "el"]);
+// Languages that use non-Latin scripts or have lower model coverage
+const NEEDS_FULL_MODEL = new Set([
+  "ar", "am", "zh", "ja", "ko", "hi", "ru", "uk", "el",
+  "yo", "ig", "ha", "sw", "zu",
+]);
 
-export function pickModel(
-  targetLang: SupportedLanguage,
-  override?: TranslateOptions["model"]
-): "gpt-4o" | "gpt-4o-mini" {
-  if (override) return override;
-  // Yoruba, Igbo, Hausa — also need 4o for quality
-  const needsFullModel = NON_LATIN_SCRIPTS.has(targetLang) ||
-    ["yo", "ig", "ha", "sw", "zu"].includes(targetLang);
-  return needsFullModel ? "gpt-4o" : "gpt-4o-mini";
+/**
+ * Resolves which model string to send to the API.
+ *
+ * Priority order:
+ *  1. opts.model            — always wins when set. Custom client users (DeepSeek,
+ *                             Groq, Mistral, etc.) should always set this explicitly,
+ *                             e.g. model: "deepseek-chat"
+ *  2. Language-based auto   — gpt-4o for complex/non-Latin scripts, gpt-4o-mini otherwise.
+ *                             opts.modelFallback replaces "gpt-4o-mini" in this path,
+ *                             useful when your provider has a single model name.
+ */
+export function pickModel(opts: TranslateOptions): string {
+  if (opts.model) return opts.model;
+  const needsFull = NEEDS_FULL_MODEL.has(opts.targetLang);
+  if (needsFull) return "gpt-4o";
+  return opts.modelFallback ?? "gpt-4o-mini";
 }
 
 function buildGlossaryBlock(meta: TranslationMeta): string {
@@ -40,13 +50,13 @@ function buildGlossaryBlock(meta: TranslationMeta): string {
   }
   if (meta.glossary) {
     for (const [src, tgt] of Object.entries(meta.glossary)) {
-      lines.push(`"${src}" → "${tgt}"`);
+      lines.push(`"${src}" -> "${tgt}"`);
     }
   }
 
   return lines.length
-    ? `GLOSSARY (must follow exactly):\n${lines.map((l) => `- ${l}`).join("\n")}`
-    : "";
+      ? `GLOSSARY (must follow exactly):\n${lines.map((l) => `- ${l}`).join("\n")}`
+      : "";
 }
 
 export function buildSystemPrompt(opts: TranslateOptions): string {
@@ -60,32 +70,32 @@ export function buildSystemPrompt(opts: TranslateOptions): string {
     domainBlock,
     glossaryBlock,
     `RULES:
-- Preserve ALL-CAPS emphasis, ellipses (...), dashes (—), and line-ending punctuation exactly.
+- Preserve ALL-CAPS emphasis, ellipses (...), dashes, and line-ending punctuation exactly.
 - Never merge or split sentences — one input item = one output item.
 - Never add explanatory text, parentheticals, or translator notes.
 - Output ONLY valid JSON. No markdown, no code fences, no preamble.`,
     `OUTPUT FORMAT:
 [{"id":<number>,"t":"<translated text>"},...]`,
   ]
-    .filter(Boolean)
-    .join("\n\n");
+      .filter(Boolean)
+      .join("\n\n");
 }
 
 export function buildUserMessage(
-  sentences: Array<{ sentenceId: number; text: string }>,
-  contextSentences: Array<{ sentenceId: number; text: string }>
+    sentences: Array<{ sentenceId: number; text: string }>,
+    contextSentences: Array<{ sentenceId: number; text: string }>
 ): string {
   const parts: string[] = [];
 
   if (contextSentences.length) {
     parts.push(
-      "CONTEXT (already translated — do NOT include in output):\n" +
+        "CONTEXT (already translated — do NOT include in output):\n" +
         contextSentences.map((s) => `[${s.sentenceId}] ${s.text}`).join("\n")
     );
   }
 
   parts.push(
-    "TRANSLATE:\n" +
+      "TRANSLATE:\n" +
       JSON.stringify(sentences.map((s) => ({ id: s.sentenceId, text: s.text })))
   );
 
