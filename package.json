@@ -1,5 +1,5 @@
 {
-  "name": "ai-transl8-srt",
+  "name": "transl8-srt",
 
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

@@ -1,4 +1,4 @@
-# ai-transl8-srt
+# transl8-srt
 
 Fast, accurate, cost-effective subtitle file translation using OpenAI.
 Supports `.srt` and `.vtt`. Optimised for sermon content; works for general video too.
@@ -8,7 +8,7 @@ Supports `.srt` and `.vtt`. Optimised for sermon content; works for general vide
 ## Install
 
 ```bash
-npm install ai-transl8-srt openai
+npm install transl8-srt openai
 ```
 
 Set your OpenAI key:
@@ -24,7 +24,7 @@ export OPENAI_API_KEY=sk-...
 ### Translate a string in memory
 
 ```typescript
-import {translate} from "ai-transl8-srt";
+import {translate} from "transl8-srt";
 
 const srtContent = `
 1
@@ -71,7 +71,7 @@ console.log(result.stats);
 ### Translate directly from/to file
 
 ```typescript
-import {translateFile} from "ai-transl8-srt";
+import {translateFile} from "transl8-srt";
 
 const result = await translateFile(
     "./sermon-english.srt",
@@ -94,7 +94,7 @@ console.log(`Cost: $${result.stats.estimatedCostUsd.toFixed(6)}`);
 ### Translate to multiple languages in parallel
 
 ```typescript
-import {translate} from "ai-transl8-srt";
+import {translate} from "transl8-srt";
 import {readFile, writeFile} from "fs/promises";
 
 const srt = await readFile("./sermon.srt", "utf-8");
@@ -121,7 +121,7 @@ for (const [i, lang] of languages.entries()) {
 
 ```typescript
 import OpenAI from "openai";
-import {translate} from "ai-transl8-srt";
+import {translate} from "transl8-srt";
 
 const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
