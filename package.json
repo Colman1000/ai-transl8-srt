@@ -1,6 +1,6 @@
 {
   "name": "ai-transl8-srt",
-  "module": "index.ts",
+  "module": "dist/index.js",
   "version": "1.0.1",
   "type": "module",
   "devDependencies": {
